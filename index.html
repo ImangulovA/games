@@ -204,6 +204,40 @@
   .btn:active { transform: translate(2px, 2px); box-shadow: none; }
   .btn.play { background: var(--accent); color: #111; border-color: #111; }
 
+  .share-wrap {
+    margin-top: 22px;
+    display: flex;
+    justify-content: center;
+  }
+  .btn.share {
+    background: var(--accent);
+    color: #111;
+    border-color: #111;
+    box-shadow: var(--shadow);
+    font-size: 16px;
+    padding: 13px 26px;
+  }
+  .btn.share:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--line); }
+  .btn.share:active { transform: translate(2px, 2px); box-shadow: none; }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 26px;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--bg);
+    border: var(--border);
+    border-color: var(--ink);
+    box-shadow: var(--shadow);
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-weight: 700;
+    font-size: 14px;
+    z-index: 100;
+  }
+  .toast[hidden] { display: none; }
+
   footer {
     margin-top: 34px;
     text-align: center;
@@ -238,12 +272,18 @@
 
     <main class="grid" id="grid"></main>
 
+    <div class="share-wrap">
+      <button class="btn share" id="share">🔗 Share today's results</button>
+    </div>
+
     <footer>
       Made by <a href="https://imangulova.github.io/">Amal Imangulov</a>
       &middot;
       <a href="https://github.com/ImangulovA" target="_blank" rel="noopener">GitHub</a>
     </footer>
   </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script>
   // =========================================================================
@@ -267,7 +307,9 @@
       base: '/train-tracks/',
       anchor: [2026, 6, 3],
       prefix: 'train-tracks_day',
-      kind: 'platform'
+      kind: 'platform',
+      shareTitle: 'Daily Train Tracks',
+      badge: '🚂'
     },
     {
       id: 'battleships',
@@ -277,7 +319,9 @@
       base: '/battleships/',
       anchor: [2026, 6, 3],
       prefix: 'battleships_day',
-      kind: 'platform'
+      kind: 'platform',
+      shareTitle: 'Daily Battleships',
+      badge: '🚢'
     },
     {
       id: 'rucatfish',
@@ -287,9 +331,13 @@
       base: '/ru-catfishing/',
       anchor: [2026, 5, 4],
       prefix: 'rucatfish_day',
-      kind: 'rucatfish'
+      kind: 'rucatfish',
+      shareTitle: 'Русский Catfishing'
     }
   ];
+
+  // Tier -> emoji, matching each game's own share line (game/index.js).
+  const TIER_EMOJI = { beginner: '🟢', easy: '🟢', medium: '🟡', hard: '🟠', expert: '🔴' };
 
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -402,6 +450,104 @@
     return 'progress';
   }
 
+  // ---- Combined "share today" ------------------------------------------------
+  // Rebuilds each game's OWN share block (see each game/index.js shareLine /
+  // ru-catfishing +page share) for TODAY, then stacks them into one message.
+  // Train Tracks / Battleships share time; ru-catfishing shares score + emoji
+  // grid (no time). Per-game URLs are dropped in favour of one hub link.
+  function rawDay(game, idx) {
+    try {
+      const raw = localStorage.getItem(game.prefix + idx);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function isDoneToday(game) {
+    const o = rawDay(game, todayIndex(game.anchor));
+    if (!o) return false;
+    if (game.kind === 'platform') return !!o.finished;
+    return !!o.done || (Array.isArray(o.results) && o.results.filter((r) => r !== null).length === o.results.length);
+  }
+
+  function shareBlock(game) {
+    const t = todayIndex(game.anchor);
+    const o = rawDay(game, t);
+
+    if (game.kind === 'platform') {
+      if (!o || !o.finished) return null; // not finished today → skip this line
+      const r = o.result || {};
+      const tier = r.tier ? TIER_EMOJI[r.tier] || '' : '';
+      const size = r.size ? ` ${r.size}` : '';
+      const time = fmtTime(o.elapsedMs || r.ms || 0);
+      const badge = r.won ? `${game.badge}✅` : game.badge;
+      const stat = `${badge} ${tier}${size}${time ? ' · ' + time : ''}`.replace(/\s+/g, ' ').trim();
+      return `${game.shareTitle} #${t}\n${stat}`;
+    }
+
+    // rucatfish — score + Wordle-style emoji grid, NO time
+    if (!o || !Array.isArray(o.results)) return null;
+    const results = o.results;
+    const answered = results.filter((r) => r !== null).length;
+    const finished = !!o.done || answered === results.length;
+    if (!finished) return null; // not finished today → skip this line
+    const wins = results.filter((r) => r === 'win').length;
+    const halves = results.filter((r) => r === 'half').length;
+    const points = wins + halves * 0.5;
+    const scoreLabel = trimNum(points);
+    const N = results.length;
+    const badge = points >= 8 ? ' 🎉 WOOHOO' : '';
+    const cells = results.map((r) => (r === 'win' ? '🐈' : r === 'half' ? '🐠' : '🐟'));
+    const rows = [];
+    for (let k = 0; k < cells.length; k += 5) rows.push(cells.slice(k, k + 5).join(''));
+    return `${game.shareTitle} #${t} - ${scoreLabel}/${N}${badge}\n${rows.join('\n')}`;
+  }
+
+  function buildShareText() {
+    const dateLbl = new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    const blocks = GAMES.map(shareBlock).filter(Boolean); // only games finished today
+    return `🎮 Daily Games · ${dateLbl}\n\n${blocks.join('\n\n')}\n\nhttps://imangulova.github.io/games/`;
+  }
+
+  let toastTimer = null;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      t.hidden = true;
+    }, 1800);
+  }
+
+  async function doShare() {
+    if (!GAMES.some(isDoneToday)) {
+      showToast('Finish a game first 🎮');
+      return;
+    }
+    const text = buildShareText();
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return; // user cancelled the share sheet
+      // otherwise fall through to clipboard
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Copied to clipboard ✓');
+    } catch (e) {
+      showToast('Copy failed — long-press to copy');
+    }
+  }
+
   function el(tag, cls, html) {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -502,6 +648,7 @@
   })();
 
   render();
+  document.getElementById('share').addEventListener('click', doShare);
   // Re-read results when the tab regains focus (e.g. back from a game).
   window.addEventListener('focus', render);
   document.addEventListener('visibilitychange', () => {
