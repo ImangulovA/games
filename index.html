@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily Games</title>
+<meta name="description" content="A tiny hub of daily puzzle games — one fresh puzzle a day. Your results and streaks live in your browser." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ===========================================================================
+     NEOBRUTALISM design tokens — same family as the games it launches.
+     default (:root) = warm light · [data-theme='dark'] = dark
+     =========================================================================== */
+  :root {
+    --bg: #fdf6e3;
+    --surface: #ffffff;
+    --surface-2: #fff8de;
+    --ink: #111111;
+    --muted: #6b6b6b;
+    --accent: #fdc800;
+    --accent-2: #a855f7;
+    --good: #02b070;
+    --warn: #d97706;
+    --none: #d9d4c4;
+    --line: #111111;
+    --border: 2px solid #111111;
+    --shadow: 5px 5px 0 #111111;
+    --shadow-sm: 3px 3px 0 #111111;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  [data-theme='dark'] {
+    --bg: #0a0e1a;
+    --surface: #151d30;
+    --surface-2: #1d2740;
+    --ink: #f3f4f6;
+    --muted: #9aa3b2;
+    --accent: #fdc800;
+    --accent-2: #c084fc;
+    --good: #02e2ac;
+    --warn: #f59e0b;
+    --none: #2b3552;
+    --line: #f3f4f6;
+    --border: 2px solid #f3f4f6;
+    --shadow: 5px 5px 0 rgba(243, 244, 246, 0.85);
+    --shadow-sm: 3px 3px 0 rgba(243, 244, 246, 0.85);
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  .wrap { max-width: 760px; margin: 0 auto; padding: 18px 16px 48px; }
+
+  header.top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .title-block h1 {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin: 0;
+  }
+  .title-block h1 .dot { color: var(--accent); }
+  .title-block .today {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+    font-family: var(--mono);
+  }
+  .themebtn {
+    border: var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 16px;
+    flex-shrink: 0;
+    color: var(--ink);
+  }
+  .themebtn:active { transform: translate(2px, 2px); box-shadow: none; }
+
+  .intro {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 14px 0 22px;
+  }
+
+  .grid { display: grid; gap: 18px; }
+
+  .card {
+    background: var(--surface);
+    border: var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 18px 18px 16px;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .card:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--line); }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .card-icon {
+    font-size: 22px;
+    width: 46px; height: 46px;
+    display: flex; align-items: center; justify-content: center;
+    border: var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
+  }
+  .card-title { flex: 1; min-width: 0; }
+  .card-title h2 { margin: 0; font-size: 18px; font-weight: 800; }
+  .card-title p { margin: 2px 0 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+
+  .badge {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border: var(--border);
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    align-self: flex-start;
+  }
+  .badge.done { background: var(--good); color: #04160f; border-color: #04160f; }
+  .badge.progress { background: var(--accent); color: #111; border-color: #111; }
+  .badge.todo { background: var(--surface-2); color: var(--ink); }
+
+  .strip {
+    display: flex;
+    gap: 6px;
+    margin: 14px 0 12px;
+    flex-wrap: wrap;
+  }
+  .cell {
+    width: 30px; height: 30px;
+    border: var(--border);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--none);
+    color: var(--muted);
+    position: relative;
+  }
+  .cell.done { background: var(--good); color: #04160f; }
+  .cell.progress { background: var(--accent); color: #111; }
+  .cell.today { outline: 3px solid var(--accent-2); outline-offset: 1px; }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: var(--ink);
+    flex-wrap: wrap;
+  }
+  .meta .muted { color: var(--muted); font-weight: 600; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    border: var(--border);
+    border-radius: 9px;
+    padding: 9px 16px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--ink);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--line); }
+  .btn:active { transform: translate(2px, 2px); box-shadow: none; }
+  .btn.play { background: var(--accent); color: #111; border-color: #111; }
+
+  footer {
+    margin-top: 34px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  footer a { color: var(--muted); text-decoration: underline; font-weight: 600; }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 480px) {
+    .title-block h1 { font-size: 25px; }
+    .card-icon { width: 40px; height: 40px; font-size: 19px; }
+    .cell { width: 27px; height: 27px; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="title-block">
+        <h1>Daily Games<span class="dot">.</span></h1>
+        <p class="today" id="today-label"></p>
+      </div>
+      <button class="themebtn" id="theme" aria-label="Toggle theme">🌙</button>
+    </header>
+
+    <p class="intro">
+      One fresh puzzle a day, three little games. Your results, streaks and
+      history live only in this browser — nothing is sent anywhere.
+    </p>
+
+    <main class="grid" id="grid"></main>
+
+    <footer>
+      Made by <a href="https://imangulova.github.io/">Amal Imangulov</a>
+      &middot;
+      <a href="https://github.com/ImangulovA" target="_blank" rel="noopener">GitHub</a>
+    </footer>
+  </div>
+
+<script>
+  // =========================================================================
+  // Game registry. All three games are served under the SAME origin
+  // (imangulova.github.io), so they share this browser's localStorage — this
+  // hub reads their per-day records directly. See each game's storage.js.
+  //   anchor  = calendar date of day index 0 ([year, monthIndex(0-11), day])
+  //   prefix  = localStorage key prefix; a day's key is `${prefix}${dayIndex}`
+  //   kind    = record shape:
+  //     'platform' (train-tracks, battleships):
+  //        { started, finished, elapsedMs, live, result:{ms,...} }
+  //     'rucatfish':
+  //        { i, results:[ 'win'|'half'|'lose'|null ], done, live }
+  // =========================================================================
+  const GAMES = [
+    {
+      id: 'train-tracks',
+      name: 'Train Tracks',
+      tagline: 'Draw one rail line from entrance to exit.',
+      icon: '🚆',
+      base: '/train-tracks/',
+      anchor: [2026, 6, 3],
+      prefix: 'train-tracks_day',
+      kind: 'platform'
+    },
+    {
+      id: 'battleships',
+      name: 'Battleships',
+      tagline: 'Find the hidden fleet from the row and column clues.',
+      icon: '🚢',
+      base: '/battleships/',
+      anchor: [2026, 6, 3],
+      prefix: 'battleships_day',
+      kind: 'platform'
+    },
+    {
+      id: 'rucatfish',
+      name: 'ru-catfishing',
+      tagline: 'Guess the Wikipedia article from its categories. (Russian)',
+      icon: '🎣',
+      base: '/ru-catfishing/',
+      anchor: [2026, 5, 4],
+      prefix: 'rucatfish_day',
+      kind: 'rucatfish'
+    }
+  ];
+
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+  // Day index for `now` given a game's anchor (local-midnight, DST-safe) — the
+  // exact math each game's platform days.js uses.
+  function todayIndex(anchor, now = new Date()) {
+    const [y, m, d] = anchor;
+    const a0 = new Date(y, m, d).getTime();
+    const n0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return Math.round((n0 - a0) / MS_PER_DAY);
+  }
+
+  function dateForDay(anchor, idx) {
+    const [y, m, d] = anchor;
+    return new Date(new Date(y, m, d).getTime() + idx * MS_PER_DAY);
+  }
+
+  function fmtTime(ms) {
+    if (!ms || ms < 0) return '';
+    const s = Math.round(ms / 1000);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return m + ':' + String(r).padStart(2, '0');
+  }
+
+  // Normalise one saved day into { started, finished, live, detail } or null.
+  function readDay(game, idx) {
+    let raw;
+    try {
+      raw = localStorage.getItem(game.prefix + idx);
+    } catch (e) {
+      return null;
+    }
+    if (!raw) return null;
+    let o;
+    try {
+      o = JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+    if (!o || typeof o !== 'object') return null;
+
+    if (game.kind === 'platform') {
+      const started = !!o.started;
+      if (!started) return null;
+      const ms = o.elapsedMs || (o.result && o.result.ms) || 0;
+      return {
+        started: true,
+        finished: !!o.finished,
+        live: o.live === true,
+        detail: o.finished ? fmtTime(ms) : ''
+      };
+    }
+
+    // rucatfish
+    if (!Array.isArray(o.results)) return null;
+    const results = o.results;
+    const answered = results.filter((r) => r !== null).length;
+    if (answered === 0 && !o.done) return null;
+    const wins = results.filter((r) => r === 'win').length;
+    const halves = results.filter((r) => r === 'half').length;
+    const finished = !!o.done || answered === results.length;
+    const points = wins + halves * 0.5;
+    return {
+      started: true,
+      finished,
+      live: o.live === true,
+      detail: finished ? trimNum(points) + '/' + results.length : ''
+    };
+  }
+
+  function trimNum(n) {
+    return Number.isInteger(n) ? String(n) : n.toFixed(1);
+  }
+
+  // Current streak = consecutive finished days counting back from today, with a
+  // grace day so an unfinished today doesn't break yesterday's streak.
+  function currentStreak(game) {
+    const t = todayIndex(game.anchor);
+    const isFin = (idx) => {
+      const r = readDay(game, idx);
+      return !!(r && r.finished);
+    };
+    let idx = isFin(t) ? t : t - 1;
+    let n = 0;
+    while (isFin(idx)) {
+      n += 1;
+      idx -= 1;
+    }
+    return n;
+  }
+
+  // Total days ever started (scan every key that belongs to this game).
+  function playedCount(game) {
+    let n = 0;
+    const re = new RegExp('^' + game.prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(-?\\d+)$');
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const mm = k && k.match(re);
+      if (!mm) continue;
+      const r = readDay(game, Number(mm[1]));
+      if (r && r.started) n += 1;
+    }
+    return n;
+  }
+
+  function statusFor(rec) {
+    if (!rec) return 'todo';
+    if (rec.finished) return 'done';
+    return 'progress';
+  }
+
+  function el(tag, cls, html) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+
+  function renderCard(game) {
+    const t = todayIndex(game.anchor);
+    const todayRec = readDay(game, t);
+    const st = statusFor(todayRec);
+
+    const card = el('div', 'card');
+
+    // header row
+    const head = el('div', 'card-head');
+    head.appendChild(el('div', 'card-icon', game.icon));
+    const titleWrap = el('div', 'card-title');
+    titleWrap.appendChild(el('h2', null, game.name));
+    titleWrap.appendChild(el('p', null, game.tagline));
+    head.appendChild(titleWrap);
+
+    let badgeTxt = 'Play today';
+    if (st === 'done') badgeTxt = todayRec.detail ? 'Done · ' + todayRec.detail : 'Done ✓';
+    else if (st === 'progress') badgeTxt = 'In progress';
+    head.appendChild(el('span', 'badge ' + st, badgeTxt));
+    card.appendChild(head);
+
+    // last-7-days strip (oldest → today)
+    const strip = el('div', 'strip');
+    for (let d = t - 6; d <= t; d++) {
+      const rec = readDay(game, d);
+      const cls = 'cell ' + statusFor(rec) + (d === t ? ' today' : '');
+      const label = dateForDay(game.anchor, d).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric'
+      });
+      const cell = el('div', cls);
+      cell.title =
+        label +
+        (rec
+          ? rec.finished
+            ? ' — done' + (rec.detail ? ' (' + rec.detail + ')' : '')
+            : ' — in progress'
+          : ' — not played');
+      cell.textContent = rec && rec.finished ? '✓' : rec ? '·' : '';
+      strip.appendChild(cell);
+    }
+    card.appendChild(strip);
+
+    // meta: streak + played
+    const streak = currentStreak(game);
+    const played = playedCount(game);
+    const meta = el('div', 'meta');
+    meta.appendChild(
+      el('span', null, '🔥 ' + streak + ' <span class="muted">day streak</span>')
+    );
+    meta.appendChild(el('span', null, played + ' <span class="muted">played</span>'));
+    card.appendChild(meta);
+
+    // actions
+    const actions = el('div', 'actions');
+    const play = el('a', 'btn play', (st === 'todo' ? 'Play today' : 'Continue') + ' →');
+    play.href = game.base;
+    const archive = el('a', 'btn', 'Archive');
+    archive.href = game.base + 'archive';
+    actions.appendChild(play);
+    actions.appendChild(archive);
+    card.appendChild(actions);
+
+    return card;
+  }
+
+  function render() {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    for (const g of GAMES) grid.appendChild(renderCard(g));
+    document.getElementById('today-label').textContent = new Date().toLocaleDateString(
+      undefined,
+      { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }
+    );
+  }
+
+  // theme (own key so it never clashes with a game's saved theme)
+  (function initTheme() {
+    const saved = localStorage.getItem('games_theme');
+    const theme = saved === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    const btn = document.getElementById('theme');
+    btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    btn.addEventListener('click', () => {
+      const next =
+        document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('games_theme', next);
+      btn.textContent = next === 'dark' ? '☀️' : '🌙';
+    });
+  })();
+
+  render();
+  // Re-read results when the tab regains focus (e.g. back from a game).
+  window.addEventListener('focus', render);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) render();
+  });
+</script>
+</body>
+</html>
