@@ -13,10 +13,12 @@ streak, and browse the archive.
 | 🚆 Train Tracks | https://imangulova.github.io/train-tracks/ |
 | 🚢 Battleships  | https://imangulova.github.io/battleships/ |
 | 🎣 ru-catfishing | https://imangulova.github.io/ru-catfishing/ |
+| 🔤 Anagram Daily | https://imangulova.github.io/anagram-daily/ |
+| 🔡 Анаграмма дня (Russian) | https://imangulova.github.io/ru-anagram-daily/ |
 
 ## How it works
 
-All three games are served as GitHub Pages **project sites under the same
+All games are served as GitHub Pages **project sites under the same
 origin** (`imangulova.github.io`). Because `localStorage` is scoped per origin
 (not per path), the games all share this browser's `localStorage`, so this hub
 reads each game's per-day progress records directly — no backend, no accounts,
@@ -28,6 +30,8 @@ Each game writes one record per day under `` `${prefix}${dayIndex}` ``:
   `{ started, finished, elapsedMs, live, result }`
 - **ru-catfishing** (`rucatfish_day*`):
   `{ i, results:['win'|'half'|'lose'|null], done, live }`
+- **Anagram Daily / Анаграмма дня** (`anagram_day*`, `ruanagram_day*`):
+  `{ started, finished, live, result:{ score }, maxScore }`
 
 The registry (anchor date, key prefix, record shape) lives in `GAMES` at the top
 of the `<script>` in `index.html`. To add a new game, add one entry there.
