@@ -333,6 +333,20 @@
       prefix: 'rucatfish_day',
       kind: 'rucatfish',
       shareTitle: 'Русский Catfishing'
+    },
+    {
+      id: 'anagram-daily',
+      name: 'Anagram Daily',
+      tagline: 'Two clues, two words — anagram their letters into a third.',
+      icon: '🔤',
+      base: '/anagram-daily/',
+      anchor: [2026, 6, 5],
+      prefix: 'anagram_day',
+      kind: 'anagram',
+      // Archive is an in-page modal (not a route): deep-link with #archive.
+      archivePath: '#archive',
+      shareTitle: 'Anagram Daily',
+      badge: '🔤'
     }
   ];
 
@@ -389,6 +403,17 @@
         finished: !!o.finished,
         live: o.live === true,
         detail: o.finished ? fmtTime(ms) : ''
+      };
+    }
+
+    if (game.kind === 'anagram') {
+      if (!o.started) return null;
+      const score = o.result && typeof o.result.score === 'number' ? o.result.score : o.score;
+      return {
+        started: true,
+        finished: !!o.finished,
+        live: o.live === true,
+        detail: o.finished ? trimNum(score) + '/' + (o.maxScore || 20) : ''
       };
     }
 
@@ -484,6 +509,14 @@
       const badge = r.won ? `${game.badge}✅` : game.badge;
       const stat = `${badge} ${tier}${size}${time ? ' · ' + time : ''}`.replace(/\s+/g, ' ').trim();
       return `${game.shareTitle} #${t}\n${stat}`;
+    }
+
+    if (game.kind === 'anagram') {
+      if (!o || !o.finished) return null; // not finished today → skip this line
+      const score = o.result && typeof o.result.score === 'number' ? o.result.score : o.score;
+      const won = o._internal && typeof o._internal.won === 'boolean' ? o._internal.won : score > 0;
+      const mark = won ? (score === (o.maxScore || 20) ? '⭐ ' : '') : '💀 ';
+      return `${game.shareTitle} #${t}\n${mark}${trimNum(score)}/${o.maxScore || 20}`;
     }
 
     // rucatfish — score + Wordle-style emoji grid, NO time
@@ -608,7 +641,7 @@
     const play = el('a', 'btn play', (st === 'todo' ? 'Play today' : 'Continue') + ' →');
     play.href = game.base;
     const archive = el('a', 'btn', 'Archive');
-    archive.href = game.base + 'archive';
+    archive.href = game.base + (game.archivePath || 'archive');
     actions.appendChild(play);
     actions.appendChild(archive);
     card.appendChild(actions);
